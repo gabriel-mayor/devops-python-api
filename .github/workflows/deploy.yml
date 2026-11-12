@@ -1,0 +1,82 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  ECR_REPOSITORY: devops-python-api
+  CONTAINER_NAME: devops-python-api
+
+jobs:
+  test:
+    name: Testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version-file: .python-version
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: python -m pip install --requirement requirements-dev.txt
+      - run: pytest
+
+  deploy:
+    name: Build, push no ECR e deploy na EC2
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build e push com tag igual ao SHA do commit
+        run: |
+          IMAGE_URI="${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
+          docker build --tag "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+          echo "IMAGE_URI=$IMAGE_URI" >> "$GITHUB_ENV"
+
+      - name: Deploy na EC2
+        uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_URI: ${{ env.IMAGE_URI }}
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          CONTAINER_NAME: ${{ env.CONTAINER_NAME }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: IMAGE_URI,REGISTRY,AWS_REGION,CONTAINER_NAME
+          script: |
+            set -e
+            aws ecr get-login-password --region "$AWS_REGION" | \
+              docker login --username AWS --password-stdin "$REGISTRY"
+            docker pull "$IMAGE_URI"
+            docker rm -f "$CONTAINER_NAME" || true
+            docker run -d --name "$CONTAINER_NAME" --restart unless-stopped \
+              -p 80:8000 "$IMAGE_URI"
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              if curl --fail --silent http://127.0.0.1/health; then
+                echo; docker ps --filter "name=$CONTAINER_NAME"; exit 0
+              fi
+              sleep 2
+            done
+            docker logs "$CONTAINER_NAME"
+            exit 1
