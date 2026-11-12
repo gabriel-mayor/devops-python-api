@@ -118,11 +118,12 @@ git remote add origin https://github.com/SEU-USUARIO/devops-python-api.git
 git push -u origin main
 ```
 
-O arquivo `.github/workflows/ci.yml` dispara o pipeline em três situações:
+O arquivo `.github/workflows/ci.yml` dispara o pipeline em duas situações:
 
-- `push` na branch `main`;
 - `pull_request` destinado à `main`;
-- execução manual pela aba **Actions**.
+- execução manual pela aba **Actions** (`workflow_dispatch`).
+
+O `push` na `main` não aciona o `ci.yml`: ele é tratado pelo `deploy.yml`.
 
 Na aba **Actions**, abra a execução e faça a leitura nesta ordem:
 

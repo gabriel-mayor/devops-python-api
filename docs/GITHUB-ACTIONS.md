@@ -8,15 +8,12 @@ O workflow está em `.github/workflows/ci.yml`. O GitHub lê automaticamente arq
 name: CI Python
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
 ```
 
 - `name` define como o workflow aparece na aba Actions.
-- `push` executa após commits enviados à `main`.
 - `pull_request` verifica a mudança antes do merge.
 - `workflow_dispatch` cria o botão para execução manual.
 
