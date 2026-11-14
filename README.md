@@ -162,7 +162,7 @@ Veja a leitura detalhada do Dockerfile em [docs/DOCKER.md](docs/DOCKER.md).
 
 ### Falha de teste
 
-Em `app/main.py`, altere temporariamente a versão do health check para `2.0.0`. O teste espera `1.0.0`, então o pytest e o pipeline devem falhar.
+Em `app/main.py`, altere temporariamente a versão do health check para `2.0.0`. O teste espera `1.1.0`, então o pytest e o pipeline devem falhar.
 
 ### Falha de qualidade
 
@@ -241,7 +241,7 @@ flowchart LR
    curl http://<URL-DA-API>/health
    ```
 
-   Resposta esperada: `{"status":"ok","version":"1.0.0"}`.
+   Resposta esperada: `{"status":"ok","version":"1.1.0"}`.
 
 2. Compare o commit implantado com a imagem no ECR: na EC2, `docker ps` mostra a imagem em execução, cuja tag é o SHA do commit. Esse SHA deve ser igual à tag da imagem mais recente no repositório do ECR e ao commit exibido na execução do workflow "Deploy" na aba **Actions**.
 
